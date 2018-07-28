@@ -337,7 +337,7 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
     {
         require(_owner != address(0));
         owner = _owner;
-        owner = msg.sender; //for test's
+        //owner = msg.sender; //for test's
         transfersEnabled = true;
         totalSupply = INITIAL_SUPPLY;
         mintForOwner(owner);
@@ -360,9 +360,9 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
             tokenAllocated = tokenAllocated.add(tokens);
             mint(_investor, tokens, owner);
             emit TokenPurchase(_investor, weiAmount, tokens);
-            //if(3750 * 10**3 * (10 ** uint256(decimals)) <= tokenAllocated && tokenAllocated <= 11250 * 10**3 * (10 ** uint256(decimals))){
+            if(3750 * 10**3 * (10 ** uint256(decimals)) <= tokenAllocated && tokenAllocated <= 11250 * 10**3 * (10 ** uint256(decimals))){
             //for test's
-            if(0 <= tokenAllocated ){
+            //if(0 <= tokenAllocated ){
                 prepareForRefund(_investor);
             }
             if (deposited[_investor] == 0) {
@@ -386,7 +386,7 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
 
     function getTotalAmountOfTokens(uint256 _weiAmount) internal view returns (uint256) {
         uint256 currentDate = now;
-        currentDate = 1537444800; //for test's (Tue, 20 Sep 2018 12:00:00 GMT)
+        //currentDate = 1537444800; //for test's (Tue, 20 Sep 2018 12:00:00 GMT)
         uint256 currentPeriod = getPeriod(currentDate);
         uint256 amountOfTokens = 0;
         uint256 priceToken = getPriceToken();
