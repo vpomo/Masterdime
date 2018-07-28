@@ -300,6 +300,10 @@ contract Crowdsale is Ownable {
     }
 }
 
+interface IGetPriceFromOraclize {
+    function update() external payable;
+    function getRate() external view returns (uint result);
+}
 
 contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
     using SafeMath for uint256;
@@ -320,6 +324,8 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
     uint256 public weiMinSale = 0.1 ether;
 
     uint256 public countInvestor;
+
+    IGetPriceFromOraclize oraclizeContact;
 
     event TokenPurchase(address indexed beneficiary, uint256 value, uint256 amount);
     event TokenLimitReached(uint256 tokenRaised, uint256 purchasedToken);
@@ -371,25 +377,23 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
         return amountOfTokens;
     }
 
-    function getPriceToken() public pure returns (uint256 _price) {
-        _price = 1150;
-/*
+    function getPriceToken() public view returns (uint256 _price) {
+        uint priceExchange = oraclizeContact.getRate();
         if(0 <= tokenAllocated && tokenAllocated <= 3750 * 10**3 * (10 ** uint256(decimals))){
-            _price = 0.05 ether;
+            _price = priceExchange.mul(100).div(5);
         }
         if(3750 * 10**3 * (10 ** uint256(decimals)) < tokenAllocated && tokenAllocated <= 40000 * 10**3 * (10 ** uint256(decimals))){
-            _price = 0.075 ether;
+            _price = priceExchange.mul(1000).div(75);
         }
         if(40000 * 10**3 * (10 ** uint256(decimals)) < tokenAllocated && tokenAllocated <= 70000 * 10**3 * (10 ** uint256(decimals))){
-            _price = 0.08 ether;
+            _price = priceExchange.mul(100).div(8);
         }
         if(70000 * 10**3 * (10 ** uint256(decimals)) < tokenAllocated && tokenAllocated <= 160000 * 10**3 * (10 ** uint256(decimals))){
-            _price = 0.09 ether;
+            _price = priceExchange.mul(100).div(9);
         }
         if(160000 * 10**3 * (10 ** uint256(decimals)) < tokenAllocated && tokenAllocated <= 325000 * 10**3 * (10 ** uint256(decimals))){
-            _price = 0.1 ether;
+            _price = priceExchange.mul(10);
         }
-*/
     }
 
     function getPeriod(uint256 _currentDate) public pure returns (uint _period) {
@@ -406,12 +410,20 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
         deposited[investor] = deposited[investor].add(msg.value);
     }
 
+    function setOraclizeContract(address _addressContract) public onlyOwner {
+        require(_addressContract != address(0));
+        oraclizeContact = IGetPriceFromOraclize(_addressContract);
+    }
+
+    function updatePrice() public payable onlyOwner {
+        oraclizeContact.update();
+    }
+
     function mintForOwner(address _wallet) internal returns (bool result) {
         result = false;
         require(_wallet != address(0));
         balances[addressFundReserv] = balances[addressFundReserv].add(fundReserv);
         balances[addressFundTeam] = balances[addressFundTeam].add(fundTeam);
-        tokenAllocated = tokenAllocated.add(fundReserv).add(fundTeam);
         balances[_wallet] = balances[_wallet].add(fundForSale);
         result = true;
     }

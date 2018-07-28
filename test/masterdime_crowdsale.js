@@ -1,9 +1,8 @@
 var MasterdimeCrowdsale = artifacts.require("./MasterdimeCrowdsale.sol");
 var MockOraclize = artifacts.require("./MockOraclize.sol");
+var contractMockOraclize;
 
 contract('MockOraclize', (accounts) => {
-    var contractMockOraclize;
-
     it('should deployed contract MockOraclize', async ()  => {
         assert.equal(undefined, contractMockOraclize);
         contractMockOraclize = await MockOraclize.deployed();
@@ -12,6 +11,8 @@ contract('MockOraclize', (accounts) => {
 
     it('get address contract MockOraclize', async ()  => {
         assert.notEqual(undefined, contractMockOraclize.address);
+        var rate = await contractMockOraclize.getRate();
+        //console.log("rate = " + rate);
     });
 });
 
@@ -19,9 +20,9 @@ contract('MasterdimeCrowdsale', (accounts) => {
     var contract;
     //var owner = "0x6d2Faf6A5706bCC104E9C001f0Af585c11F72437";
     var owner = accounts[0];
-    var rate = 1000*1.15;
+    var rate = 9240;
     var buyWei = 1 * 10**18;
-    var rateNew = 1000*1.15;
+    var rateNew = 9240;
     var buyWeiNew = 5 * 10**17;
     var buyWeiMin = 1 * 10**16;
 
@@ -39,13 +40,13 @@ it('should deployed contract', async ()  => {
 
     it('get address contract', async ()  => {
         assert.notEqual(undefined, contract.address);
+        await contract.setOraclizeContract(contractMockOraclize.address, {from:accounts[0]});
+        await contract.updatePrice({from:accounts[0]});
     });
 
 
     it('verification balance owner contract', async ()  => {
         var balanceOwner = await contract.balanceOf(owner);
-        var tokenAllocatedCurrent = await contract.tokenAllocated.call();
-        assert.equal(tokenAllocated, tokenAllocatedCurrent);
         assert.equal(fundForSale, balanceOwner);
     });
 
@@ -128,6 +129,8 @@ it('should deployed contract', async ()  => {
     });
 
     it('verification tokens cap reached', async ()  => {
+            var tokenAllocated = await contract.tokenAllocated.call();
+            //console.log("tokenAllocated = " + Number(tokenAllocated/1e18));
             var numberTokensNormal = await contract.validPurchaseTokens.call(buyWei);
             //console.log("numberTokensNormal = " + numberTokensNormal);
             assert.equal(rate*buyWei, numberTokensNormal);

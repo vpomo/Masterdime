@@ -1,22 +1,45 @@
 pragma solidity ^0.4.24;
+import "github.com/oraclize/ethereum-api/oraclizeAPI.sol";
 
-contract MockOraclize {
+contract PriceEthTicker is usingOraclize {
 
     string public ETHUSD;
 
     event LogInfo(string description);
-    event LogUpdate(address indexed _owner, uint indexed _balance);
+    event LogPriceUpdate(string price);
+    event LogUpdate(address indexed _sender, uint indexed _balance);
 
     // Constructor
-    constructor() public {
+    function PriceEthTicker()
+    payable
+    public {
         emit LogUpdate(msg.sender, address(this).balance);
-        ETHUSD = "462.05";
+        update();
     }
 
+    // Fallback function
+    function()
+    public{
+        revert();
+    }
+
+    function __callback(bytes32 id, string result, bytes proof)
+    public {
+        ETHUSD = result;
+        emit LogPriceUpdate(ETHUSD);
+        update();
+    }
+
+    function getBalance()
+    public
+    returns (uint _balance) {
+        return address(this).balance;
+    }
 
     function update()
     payable
     public {
+        oraclize_query("URL", "json(https://api.coinbase.com/v2/prices/ETH-USD/spot).data.amount");
         emit LogInfo("Oraclize query was sent, standing by for the answer..");
     }
 
@@ -46,5 +69,3 @@ contract MockOraclize {
         return result;
     }
 }
-
-
