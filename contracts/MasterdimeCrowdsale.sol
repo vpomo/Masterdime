@@ -312,14 +312,15 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
     mapping(address => bool) public whitelist;
     // List of admins
     mapping (address => bool) public contractAdmins;
+    // list of refund
+    mapping (address => mapping (uint256 => bool)) public confirmations;
+
 
     uint256 public constant INITIAL_SUPPLY = 500 * 10**6 * (10 ** uint256(decimals));
     uint256 public fundForSale = 325 * 10**6 * (10 ** uint256(decimals));
 
     address public addressFundReserv = 0xeE5090f1C6920c347c1f2273A5F2b8AAc4c8b103;
     uint256 public fundReserv = 100 * 10**6 * (10 ** uint256(decimals));
-
-    uint256[] public discount  = [200, 150, 100, 75, 50, 25];
 
     uint256 public weiMinSale = 0.1 ether;
 
@@ -350,19 +351,37 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
     // low level token purchase function
     function buyTokens(address _investor) public onlyWhitelist payable returns (uint256){
         require(_investor != address(0));
-        uint256 weiAmount = msg.value;
-        uint256 tokens = validPurchaseTokens(weiAmount);
-        if (tokens == 0) {revert();}
-        weiRaised = weiRaised.add(weiAmount);
-        tokenAllocated = tokenAllocated.add(tokens);
-        mint(_investor, tokens, owner);
-        emit TokenPurchase(_investor, weiAmount, tokens);
-        if (deposited[_investor] == 0) {
-            countInvestor = countInvestor.add(1);
+        uint256 tokens = 0;
+        if(_investor != owner){
+            uint256 weiAmount = msg.value;
+            tokens = validPurchaseTokens(weiAmount);
+            if (tokens == 0) {revert();}
+            weiRaised = weiRaised.add(weiAmount);
+            tokenAllocated = tokenAllocated.add(tokens);
+            mint(_investor, tokens, owner);
+            emit TokenPurchase(_investor, weiAmount, tokens);
+            //if(3750 * 10**3 * (10 ** uint256(decimals)) <= tokenAllocated && tokenAllocated <= 11250 * 10**3 * (10 ** uint256(decimals))){
+            //for test's
+            if(0 <= tokenAllocated ){
+                prepareForRefund(_investor);
+            }
+            if (deposited[_investor] == 0) {
+                countInvestor = countInvestor.add(1);
+            }
+            deposit(_investor);
+            wallet.transfer(weiAmount);
         }
-        deposit(_investor);
-        wallet.transfer(weiAmount);
         return tokens;
+    }
+
+    function prepareForRefund(address _addressInvestor) internal {
+        uint256 lastPaid = deposited[_addressInvestor];
+        uint256 weiInvestor = lastPaid.add(msg.value);
+        require(weiInvestor > 0);
+        if(lastPaid > 0){
+            confirmations[_addressInvestor][lastPaid] = false;
+        }
+        confirmations[_addressInvestor][weiInvestor] = true;
     }
 
     function getTotalAmountOfTokens(uint256 _weiAmount) internal view returns (uint256) {
@@ -410,9 +429,37 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
         deposited[investor] = deposited[investor].add(msg.value);
     }
 
+    function depositOf(address _owner) public constant returns (uint256 balance) {
+        return deposited[_owner];
+    }
+
+    function getConfirmRefund(address _addressInvestor, uint256 _weiAmount) public view returns (bool) {
+        return confirmations[_addressInvestor][_weiAmount];
+    }
+
     function setOraclizeContract(address _addressContract) public onlyOwner {
         require(_addressContract != address(0));
         oraclizeContact = IGetPriceFromOraclize(_addressContract);
+    }
+
+    function refundToInvestor() public returns (uint256) {
+        address _addressInvestor = msg.sender;
+        require(_addressInvestor != address(0));
+        uint256 weiInvestor = depositOf(_addressInvestor);
+        require(weiInvestor > 0);
+        require(address(this).balance >= weiInvestor);
+        uint256 tokenInvestor = balanceOf(_addressInvestor);
+        require(tokenInvestor > 0);
+        if(confirmations[_addressInvestor][weiInvestor] == true){
+            balances[_addressInvestor] = 0;
+            confirmations[_addressInvestor][weiInvestor] == false;
+            deposited[_addressInvestor] = 0;
+            balances[owner] = balances[owner].add(tokenInvestor);
+            tokenAllocated = tokenAllocated.sub(tokenInvestor);
+            fundForSale = fundForSale.add(tokenInvestor);
+            _addressInvestor.transfer(weiInvestor);
+        }
+        return weiInvestor;
     }
 
     function updatePrice() public payable onlyOwner {
@@ -497,5 +544,10 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
         require(whitelist[msg.sender]);
         _;
     }
+
+    function balanceContract() public view returns (uint256){
+        return address(this).balance;
+    }
+
 }
 

@@ -51,6 +51,7 @@ it('should deployed contract', async ()  => {
     });
 
     it('verification of receiving Ether', async ()  => {
+        await contract.addToWhitelist(accounts[0], {from:accounts[0]});
         await contract.addToWhitelist(accounts[2], {from:accounts[0]});
         await contract.addToWhitelist(accounts[3], {from:accounts[0]});
         var isWhiteList = await contract.whitelist.call(accounts[2]);
@@ -128,13 +129,40 @@ it('should deployed contract', async ()  => {
         assert.equal(2, vestingPeriod);
     });
 
-    it('verification tokens cap reached', async ()  => {
+    it('verification tokens min sale', async ()  => {
             var tokenAllocated = await contract.tokenAllocated.call();
             //console.log("tokenAllocated = " + Number(tokenAllocated/1e18));
             var numberTokensNormal = await contract.validPurchaseTokens.call(buyWei);
             //console.log("numberTokensNormal = " + numberTokensNormal);
             assert.equal(rate*buyWei, numberTokensNormal);
+            var numberTokensMin = await contract.validPurchaseTokens.call(buyWeiMin);
+            assert.equal(0, numberTokensMin);
     });
+
+    it('verification refund to investor', async ()  => {
+        var balanceAccountTwoBefore = await contract.balanceOf(accounts[2]);
+        var weiInvestorBefore = await contract.depositOf(accounts[2]);
+        var tokenAllocatedBefore = await contract.tokenAllocated.call();
+        var balanceBefore = await contract.balanceContract();
+        //console.log("balanceBefore = " + balanceBefore);
+        //console.log(balanceAccountTwoBefore/1e18 + "--" + weiInvestorBefore/1e18 + "--" + tokenAllocatedBefore/1e18);
+        await contract.buyTokens(accounts[0],{from:accounts[0], value:buyWei*2});
+        var boolRefund = await contract.getConfirmRefund(accounts[2], weiInvestorBefore);
+        assert.isTrue(boolRefund);
+        //console.log("boolRefund = " + boolRefund);
+
+        await  contract.refundToInvestor({from:accounts[2]});
+        var balanceAccountTwoAfter = await contract.balanceOf(accounts[2]);
+        var weiInvestorAfter = await contract.depositOf(accounts[2]);
+        var tokenAllocatedAfter = await contract.tokenAllocated.call();
+        assert.equal(0, balanceAccountTwoAfter);
+        assert.equal(0, weiInvestorAfter);
+        //console.log(balanceAccountTwoAfter/1e18 + "--" + weiInvestorAfter/1e18 + "--" + tokenAllocatedAfter/1e18);
+        var balanceAfter = await contract.balanceContract();
+        //console.log("balanceAfter = " + balanceAfter);
+        assert.equal(buyWei, balanceAfter);
+    });
+
 });
 
 
