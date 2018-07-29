@@ -325,12 +325,17 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
     uint256 public weiMinSale = 0.1 ether;
 
     uint256 public countInvestor;
+    uint256 softCap = 11250 * 10**3 * (10 ** uint256(decimals));
+    uint256 startTime = 1535760000; //Sat, 01 Sep 2018 00:00:00 GMT
+    uint256 endTime = 1541030400; //Thu, 01 Nov 2018 00:00:00 GMT
+
 
     IGetPriceFromOraclize oraclizeContact;
 
     event TokenPurchase(address indexed beneficiary, uint256 value, uint256 amount);
     event TokenLimitReached(uint256 tokenRaised, uint256 purchasedToken);
     event Burn(address indexed burner, uint256 value);
+    event Refund(address indexed investor, uint256 value);
 
     constructor (address _owner) public
     Crowdsale(_owner)
@@ -360,7 +365,7 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
             tokenAllocated = tokenAllocated.add(tokens);
             mint(_investor, tokens, owner);
             emit TokenPurchase(_investor, weiAmount, tokens);
-            if(3750 * 10**3 * (10 ** uint256(decimals)) <= tokenAllocated && tokenAllocated <= 11250 * 10**3 * (10 ** uint256(decimals))){
+            if(3750 * 10**3 * (10 ** uint256(decimals)) <= tokenAllocated && tokenAllocated <= softCap){
             //for test's
             //if(0 <= tokenAllocated ){
                 prepareForRefund(_investor);
@@ -415,9 +420,7 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
         }
     }
 
-    function getPeriod(uint256 _currentDate) public pure returns (uint _period) {
-        uint256 startTime = 1535760000; //Sat, 01 Sep 2018 00:00:00 GMT
-        uint256 endTime = 1541030400; //Thu, 01 Nov 2018 00:00:00 GMT
+    function getPeriod(uint256 _currentDate) public view returns (uint _period) {
         _period = 0;
         //1535760000 - Sep, 01, 2018 00:00:00 && 1541030400 - Nov, 01, 2018 00:00:00
         if( startTime < _currentDate && _currentDate < endTime){
@@ -442,7 +445,8 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
         oraclizeContact = IGetPriceFromOraclize(_addressContract);
     }
 
-    function refundToInvestor() public returns (uint256) {
+    function refundToInvestor() onlySoftCap public returns (uint256) {
+    //function refundToInvestor() public returns (uint256) { //for test's
         address _addressInvestor = msg.sender;
         require(_addressInvestor != address(0));
         uint256 weiInvestor = depositOf(_addressInvestor);
@@ -458,6 +462,7 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
             tokenAllocated = tokenAllocated.sub(tokenInvestor);
             fundForSale = fundForSale.add(tokenInvestor);
             _addressInvestor.transfer(weiInvestor);
+            emit Refund(_addressInvestor, weiInvestor);
         }
         return weiInvestor;
     }
@@ -542,6 +547,11 @@ contract MasterdimeCrowdsale is Ownable, Crowdsale, MintableToken {
 
     modifier onlyWhitelist() {
         require(whitelist[msg.sender]);
+        _;
+    }
+
+    modifier onlySoftCap() {
+        require(endTime <= now && tokenAllocated <= softCap);
         _;
     }
 

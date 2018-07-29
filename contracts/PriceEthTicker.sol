@@ -5,7 +5,7 @@ import "github.com/oraclize/ethereum-api/oraclizeAPI.sol";
 contract PriceEthTicker is usingOraclize {
 
     address owner;
-    string public ETHUSD;
+    string public ETHUSD = "490.05";
 
     event LogInfo(string description);
     event LogPriceUpdate(string price);
